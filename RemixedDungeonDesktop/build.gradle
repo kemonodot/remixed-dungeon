@@ -181,6 +181,43 @@ tasks.register('runDesktopGame', JavaExec) {
     standardInput = System.in
 }
 
+// Isolated, disposable practice save; never overwrite the player's normal profile.
+tasks.register('runAbilityProof', JavaExec) {
+    dependsOn classes
+    mainClass = 'com.nyrds.pixeldungeon.desktop.AbilityProofLauncher'
+    classpath = sourceSets.main.runtimeClasspath
+    setArgs(['--windowed', '--nosound', '--debug'])
+    def proofRoot = file("${buildDir}/ability-proof")
+    workingDir = new File(proofRoot, 'rundir')
+    systemProperty 'user.home', new File(proofRoot, 'profile').absolutePath
+    environment 'XDG_CACHE_HOME', new File(proofRoot, 'cache').absolutePath
+    doFirst {
+        workingDir.mkdirs()
+        new File(proofRoot, 'profile').mkdirs()
+        ['assets', 'd_assets', 'l10ns'].each { name ->
+            def link = new File(proofRoot, name).toPath()
+            if (!java.nio.file.Files.exists(link)) {
+                java.nio.file.Files.createSymbolicLink(link, file("src/desktop/${name}").toPath())
+            }
+        }
+    }
+}
+
+// Small portable proof bundle (Java 17 and a graphical desktop are prerequisites).
+tasks.register('packageAbilityProof', Zip) {
+    dependsOn shadowJar
+    archiveFileName = 'RemixedDungeon-ability-proof.zip'
+    destinationDirectory = file("${buildDir}/distributions")
+    from(shadowJar)
+    from('src/desktop/assets') { into 'assets'; exclude 'scripts' }
+    from('../scripts') { into 'assets/scripts' }
+    from('src/desktop/d_assets') { into 'd_assets' }
+    from('src/desktop/l10ns') { into 'l10ns' }
+    from('../tools/ability-proof/play.sh') { fileMode 0755 }
+    from('../tools/ability-proof/play.bat')
+    from('../docs/ability-proof.md') { rename { 'README.md' } }
+}
+
 // Explicit task to run the desktop game with web server
 tasks.register('runDesktopGameWithWebServer', JavaExec) {
     dependsOn classes

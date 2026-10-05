@@ -7,6 +7,8 @@ import com.nyrds.LuaInterface;
 import com.nyrds.Packable;
 import com.nyrds.lua.LuaEngine;
 import com.nyrds.lua.LuaUtils;
+import com.nyrds.pixeldungeon.abilities.NormalAttackDamage;
+import com.nyrds.pixeldungeon.abilities.ProofAbilities;
 import com.nyrds.pixeldungeon.ai.AiState;
 import com.nyrds.pixeldungeon.ai.MobAi;
 import com.nyrds.pixeldungeon.ai.Passive;
@@ -519,7 +521,7 @@ public abstract class Char extends Actor implements HasPositionOnLevel, Presser,
 
             effectiveDamage = attackProc(enemy, effectiveDamage);
             effectiveDamage = enemy.defenseProc(this, effectiveDamage);
-            enemy.damage(effectiveDamage, this);
+            effectiveDamage = NormalAttackDamage.apply(this, enemy, effectiveDamage);
 
 
             if (effectiveDamage > 0) {
@@ -552,6 +554,7 @@ public abstract class Char extends Actor implements HasPositionOnLevel, Presser,
             }
 
 
+            ProofAbilities.onHit(this, enemy);
             return true;
         } else {
 
@@ -860,6 +863,7 @@ public abstract class Char extends Actor implements HasPositionOnLevel, Presser,
         dmg = dmg_[0];
 
         dmg = resist(dmg, src);
+        dmg = NormalAttackDamage.limit(this, src, dmg);
 
         if (dmg <= 0) {
             GLog.debug("Resisted!!!", getEntityKind(), dmg, src.getEntityKind());
@@ -909,7 +913,7 @@ public abstract class Char extends Actor implements HasPositionOnLevel, Presser,
 
     @LuaInterface
     public void die(@NotNull NamedEntityKind cause) {
-
+        boolean abilityEnemy = ProofAbilities.enemyForDeath(this);
         getState().onDie(this);
 
         if (cause == null) {
@@ -931,6 +935,7 @@ public abstract class Char extends Actor implements HasPositionOnLevel, Presser,
             }
         }
         destroy();
+        ProofAbilities.onDeath(this, abilityEnemy);
     }
 
     public boolean isAlive() {
@@ -1173,6 +1178,7 @@ public abstract class Char extends Actor implements HasPositionOnLevel, Presser,
     }
 
     public void placeTo(int cell) {
+        int previousCell = getPos();
         setPos(cell);
 
         if (!isFlying()) {
@@ -1186,6 +1192,7 @@ public abstract class Char extends Actor implements HasPositionOnLevel, Presser,
         if (this != Dungeon.hero) {
             getSprite().setVisible(Dungeon.isCellVisible(cell) && invisible >= 0);
         }
+        ProofAbilities.onMoved(this, previousCell, getPos());
     }
 
     @LuaInterface

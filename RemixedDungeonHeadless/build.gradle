@@ -179,3 +179,27 @@ tasks.register('headlessShadowJar', ShadowJar) {
         into 'assets'
     }
 }
+
+// Executes real game-loop integration checks; test NO-SOURCE is not a substitute.
+tasks.register('abilityProofTest', JavaExec) {
+    dependsOn testClasses
+    mainClass = 'com.nyrds.pixeldungeon.abilities.AbilityProofTest'
+    classpath = sourceSets.test.runtimeClasspath
+    systemProperty 'rpd.abilityProof', 'true'
+    def fixtureRoot = file("${buildDir}/ability-proof")
+    workingDir = new File(fixtureRoot, 'rundir')
+    systemProperty 'user.home', new File(fixtureRoot, 'home').absolutePath
+    environment 'XDG_CACHE_HOME', new File(fixtureRoot, 'cache').absolutePath
+    doFirst {
+        fixtureRoot.mkdirs()
+        workingDir.mkdirs()
+        new File(fixtureRoot, 'home').mkdirs()
+        new File(fixtureRoot, 'cache').mkdirs()
+        ['assets': rootProject.file('RemixedDungeon/src/main/assets'),
+         'd_assets': rootProject.file('RemixedDungeonDesktop/src/desktop/d_assets'),
+         'l10ns': rootProject.file('RemixedDungeonDesktop/src/desktop/l10ns')].each { name, source ->
+            def link = new File(fixtureRoot, name).toPath()
+            if (!java.nio.file.Files.exists(link)) java.nio.file.Files.createSymbolicLink(link, source.toPath())
+        }
+    }
+}
